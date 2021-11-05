@@ -83,6 +83,7 @@ def plot_img_from_k(k,axes=None,psx=None,psy=None,vmin=0,vmax=1):
     img = np.rot90(rss_image_from_multicoil_k(k),k=3)
     if(psx is not None and psy is not None):
         img = zoom(img, zoom=(1/psx, 1/psy))
+
     if(axes is not None):
         axes.imshow(img,cmap='gray',vmin=vmin,vmax=vmax)
         axes.axis('off')
@@ -123,6 +124,7 @@ def plot_img_diff_from_k(k1,k2,axes=None,psx=None,psy=None,vmin=-0.5,vmax=0.5):
 def plot_img_ssim_from_k(k1,k2,axes=None,psx=None,psy=None):
     img1 = np.rot90(rss_image_from_multicoil_k(k1),k=3)
     img2 = np.rot90(rss_image_from_multicoil_k(k2),k=3)
+    
     if(psx is not None and psy is not None):
         img1= zoom(img1, zoom=(1/psx, 1/psy))
         img2= zoom(img2, zoom=(1/psx, 1/psy))
@@ -141,7 +143,7 @@ def plot_k(k, axes=None,vmin=-20,vmax=20):
     k = k[:,:,0]
     k = np.rot90(k,k=3)
     if(axes is not None):
-        axes.imshow(np.log(np.abs(k)+1e-7),cmap='gray',vmin=vmin,vmax=vmax)
+        axes.imshow(np.log(np.abs(k)+1e-7),cmap='gray',vmin=vmin,vmax=vmax,aspect='auto')
         axes.axis('off')
     else:
         plt.figure()
@@ -218,10 +220,60 @@ def plot_example_result(ex_in, ex_out, ex_grappa, ex_model, ind, output_domain='
     plot_img_ssim_from_k(ex_in,ex_out,axes[2][1],psx=psx,psy=psy)
     plot_img_ssim_from_k(ex_grappa,ex_out,axes[2][2],psx=psx,psy=psy)
     plot_img_ssim_from_k(ex_model,ex_out,axes[2][3],psx=psx,psy=psy)
-    
+
     plot_k(ex_out,axes[3][0])
     plot_k(ex_in,axes[3][1])
     plot_k(ex_grappa,axes[3][2])
     plot_k(ex_model,axes[3][3])
-    
+
     plt.subplots_adjust(wspace=0, hspace=0)
+
+def plot_comparison_results(ex_in, ex_out, recons, labels, ind, psx=None, psy=None, vmin=0, vmax=1):
+    if(psx == None):
+        psx = 1
+    if(psy == None):
+        psy = 1
+    assert(len(recons)==len(labels))
+    n = len(recons)
+    
+    ex_x = ex_in.shape[1]*psx
+    ex_y = ex_in.shape[2]*psy
+
+    to_plot = [ex_in,ex_out]
+    to_plot.extend(recons)
+
+    titles = ['Ground Truth', 'Motion-Corrupted']
+    titles.extend(labels)
+
+    def process_recon(k):
+        k = utils.join_reim_channels(tf.convert_to_tensor(k))
+        k = k[ind,:,:,:]
+        return k
+    
+    to_plot = [process_recon(recon) for recon in to_plot]
+
+    matplotlib.rcParams.update({'font.size': 22})
+
+    fig_x = ex_y*(n+2)
+    fig_y = ex_x*3+ex_y*ex_in.shape[2]/ex_out.shape[1]
+
+    #fig,axes = plt.subplots(4,n+2,figsize=(25,25*fig_y/fig_x))
+    fig,axes = plt.subplots(4,n+2,figsize=(25,25*4/(n+2)))
+
+    x,y,dx,dy = 100,200,128,128
+    for i in range(n+2):
+        plot_img_from_k(to_plot[i],axes[0][i],psx=psx,psy=psy,vmin=vmin,vmax=vmax)
+        axes[0][i].set_title(titles[i])
+        plot_img_crop_from_k(to_plot[i],x,y,dx,dy,axes[1][i],psx=psx,psy=psy,vmin=vmin,vmax=vmax)
+        
+        if(i==1):
+            plot_img_ssim_from_k(to_plot[i],to_plot[0],axes[2][i],psx=psx,psy=psy)
+        elif(i>1):
+            plot_img_ssim_from_k(to_plot[i],to_plot[1],axes[2][i],psx=psx,psy=psy)
+        else:
+            axes[2][i].axis('off')
+        plot_k(to_plot[i],axes[3][i])
+        axes[3][i].set_aspect(psy/psx)
+    
+    
+    plt.subplots_adjust(wspace=0,hspace=0)
