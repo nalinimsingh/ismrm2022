@@ -8,6 +8,7 @@ import tensorflow as tf
 from interlacer import utils
 
 def ssim(img1, img2):
+    #1 
     C1 = (0.01 * 5)**2
     C2 = (0.03 * 5)**2
 
